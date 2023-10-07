@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Newtonsoft.Json.Linq;
+using System.Diagnostics.Contracts;
 
 namespace Test
 {
@@ -20,6 +21,7 @@ namespace Test
         public bool transcode_bool = false;
         public int cdn;
         public int transcode;
+        public int id;
         private async void button1_Click(object sender, EventArgs e)
         {
 
@@ -52,28 +54,36 @@ namespace Test
             using (HttpClient client = new HttpClient())
             {
                 client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-                HttpResponseMessage response = await client.GetAsync(url);
+                HttpResponseMessage response = await client.GetAsync($"{url}/{id}");
                 var responseContent = await response.Content.ReadAsStringAsync();
                 var json = JObject.Parse(responseContent);
-                JArray items = (JArray)json["items"];
-                foreach (var item in items)
+                var configExtension = json["configExtension"].ToString();
+                if (!String.IsNullOrEmpty(configExtension))
                 {
-                    var configExtension = item["configExtension"].ToString();
-                    if (!String.IsNullOrEmpty(configExtension))
-                    {
-                        var configObject = JObject.Parse(configExtension);
-                        configObject["Cdn"] = $"{cdn}";
-                        configObject["Transcode"] = $"{transcode}";
-                        item["configExtension"] = configObject.ToString();
-                    }
+                    var configObject = JObject.Parse(configExtension);
+                    configObject["Cdn"] = $"{cdn}";
+                    configObject["Transcode"] = $"{transcode}";
+                    json["configExtension"] = configObject.ToString();
+                    StringContent content = new StringContent(json.ToString(), Encoding.UTF8, "application/json");
+                    HttpResponseMessage newResponse = await client.PutAsync(url, content);
+                    var finalResponseContent = await newResponse.Content.ReadAsStringAsync();
+                    MessageBox.Show(finalResponseContent);
                 }
-
-                string modifiedJsonString = json.ToString();
-                MessageBox.Show(modifiedJsonString);
             }
             
         }
 
+        private void textBox1_TextChanged(object sender, EventArgs e)
+        {
+            if(textBox1.Text.Length > 0)
+            {
+                id = Int32.Parse(textBox1.Text);
+            }
+        }
 
+        private void label1_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }
